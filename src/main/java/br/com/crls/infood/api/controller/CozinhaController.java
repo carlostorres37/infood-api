@@ -17,8 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.crls.infood.domain.exception.EntidadeEmUsoException;
+import br.com.crls.infood.domain.exception.EntidadeNaoEncontradaException;
 import br.com.crls.infood.domain.model.Cozinha;
 import br.com.crls.infood.domain.repository.CozinhaRepository;
+import br.com.crls.infood.domain.service.CadastroCozinhaService;
 
 @RestController
 @RequestMapping("/cozinhas")
@@ -27,20 +30,27 @@ public class CozinhaController {
 	@Autowired
 	private CozinhaRepository cozinhaRepository;
 	
+	@Autowired
+	private CadastroCozinhaService casdastroCozinhaService;
+	
 	@GetMapping
 	public List<Cozinha> listar() {
 		return cozinhaRepository.findAll();
 	}
 	
 	@GetMapping("/{id}")
-	public Optional<Cozinha> buscarPorId(@PathVariable Long id) { 
-		return cozinhaRepository.findById(id);
+	public ResponseEntity<Cozinha> buscarPorId(@PathVariable Long id) { 
+		Optional<Cozinha> cozinha = cozinhaRepository.findById(id);
+		if (cozinha.isPresent()) {
+			return ResponseEntity.ok(cozinha.get());
+		}
+		return ResponseEntity.notFound().build();
 	}
 	
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public Cozinha adicionar(@RequestBody Cozinha cozinha) {
-		return cozinhaRepository.save(cozinha);
+		return casdastroCozinhaService.salvar(cozinha);
 	}
 	
 	@PutMapping("/{id}")
@@ -48,7 +58,7 @@ public class CozinhaController {
 		Optional<Cozinha> cozinhaOptinal = cozinhaRepository.findById(id);
 		if (cozinhaOptinal.isPresent()) {
 			BeanUtils.copyProperties(cozinha, cozinhaOptinal.get(), "id");
-			cozinhaRepository.save(cozinhaOptinal.get());
+			casdastroCozinhaService.salvar(cozinhaOptinal.get());
 			return ResponseEntity.ok(cozinhaOptinal.get());
 		}
 		return ResponseEntity.notFound().build();
@@ -57,13 +67,13 @@ public class CozinhaController {
 	@DeleteMapping("/{id}")
 	public ResponseEntity<Cozinha> deleter(@PathVariable Long id) {
 		try {
-			Optional<Cozinha> cozinhaOptional = cozinhaRepository.findById(id);
-			if (cozinhaOptional.isPresent()) {
-				cozinhaRepository.delete(cozinhaOptional.get());
-				return ResponseEntity.noContent().build();
-			}
+			casdastroCozinhaService.Excluir(id);
+			return ResponseEntity.noContent().build();
+			
+		} catch (EntidadeNaoEncontradaException e) {
 			return ResponseEntity.notFound().build();
-		} catch (Exception e) {
+			
+		} catch (EntidadeEmUsoException e) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).build();
 		}
 	}
